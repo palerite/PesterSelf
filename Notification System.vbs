@@ -1,0 +1,1 @@
+CreateObject("Wscript.Shell").Run "NotificationSystemRunner.bat",0,True
