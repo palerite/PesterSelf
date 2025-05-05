@@ -1,11 +1,13 @@
 from tkinter import *
 from tkinter import simpledialog
+from tkinter import messagebox
 # from pathlib import Path
-# import os
+import os
 # import sys
 # import subprocess
 # import datetime
 from pesterself import *
+import signal
 
 
 def write():
@@ -74,6 +76,39 @@ def open_message(msg: Message):
     refresh_message_list()
 
 
+def stop_notification_system():
+    with (get_message_directory()/"notif.log").open() as log:
+        pid = int(log.readline())
+        if pid == 0:
+            messagebox.showinfo("Response", "Looks like it was already stopped.")
+            return
+        try:
+            os.kill(pid, signal.SIGTERM)
+            messagebox.showinfo("Response", "Successfully stopped the Notification System.\
+ Something with its process id, at least ...")
+            with (get_message_directory() / "notif.log").open("w") as log_file:
+                log_file.write("0")
+            print("Notification System successfully disabled")
+        except PermissionError:
+            messagebox.showinfo("Response", "Couldn't do that. It probably was already stopped.")
+
+
+def start_notification_system():
+    with (get_message_directory() / "notif.log").open() as log:
+        pid = int(log.readline())
+        if pid != 0:
+            try:
+                os.kill(pid, signal.SIGTERM)
+                open_file("Notification System.vbs")
+                messagebox.showinfo("Response", "Notification System restarted!")
+                return
+            except PermissionError:
+                pass
+
+    open_file("Notification System.vbs")
+    messagebox.showinfo("Response", "Notification System started!")
+
+
 class ScrolledCanvas:
     def __init__(self, parent, color='brown'):
         self.c = Canvas(parent, bg=color)
@@ -126,7 +161,17 @@ WriteButton.pack(in_=RightFrame, side=TOP)
 OpenFolderButton = Button(root, text="Open message folder", command=open_folder)
 OpenFolderButton.pack(in_=RightFrame, side=TOP)
 RefreshButton = Button(root, text="Refresh list", command=refresh_message_list)
-RefreshButton.pack(in_=RightFrame, side=BOTTOM, pady=20)
+RefreshButton.pack(in_=RightFrame, pady=20)
+
+
+NotifFrame = Frame(RightFrame, bg="#cfcecc")
+NotifFrame.pack(side=BOTTOM)
+NotifLabel = Label(RightFrame, text="Notification System\ncontrols", bg="#cfcecc")
+NotifLabel.pack(side=TOP)
+StopButton = Button(root, text="Stop", command=stop_notification_system)
+StopButton.pack(in_=NotifFrame, padx=2, side=RIGHT)
+StartButton = Button(root, text="Start", command=start_notification_system)
+StartButton.pack(in_=NotifFrame, padx=2, side=LEFT)
 
 FRAME_WIDTH = 200
 FRAME_HEIGHT = 60

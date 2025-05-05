@@ -1,9 +1,14 @@
 from tkinter import *
 from pesterself import *
+import atexit
+import signal
 
 testmsg = Message("TestTitle", datetime.datetime.now(), datetime.datetime.now(),
                   get_message_directory() / "null.txt", False)
 notifications_on_screen = 0
+
+with (get_message_directory() / "notif.log").open("w") as log:
+    log.write(str(os.getpid()))
 
 
 def decrease_notification_amount(wdw):
@@ -17,7 +22,6 @@ def decrease_notification_amount(wdw):
 
 def inspection():
     global msgs_added
-    global messages
     msgs_instantly = 0
     messages = get_message_list()
     for msg in messages:
@@ -82,7 +86,8 @@ def notification_popup(msg: Message, window=root):
     frame_right.pack(side=RIGHT, padx=padding_px, pady=padding_px)
 
     label = Label(frame_left,
-                  text=f"\tYou have a new message from yourself!\n\n\t\"{msg.title}\" from {msg.get_date_sent_pretty()}")
+                  text=f"\tYou have a new message from yourself!\n\n\t\"{msg.title}\" from \
+                    {msg.get_date_sent_pretty()}")
     label.pack()
 
     open_button = Button(frame_right, text="Open the message", command=lambda x=msg, y=window: open_message(x, y))
@@ -101,10 +106,19 @@ def open_message(msg: Message, wdw):
     msg.open()
 
 
-messages = list()
-msgs_startup = 0
+def exit_handling():
+    print("Notification System successfully disabled")
+    with (get_message_directory() / "notif.log").open("w") as log_file:
+        log_file.write("0")
+        print("Notification System successfully disabled")
+
+
 msgs_added = list()
 inspection()
 # root.after(2000, notification_popup, testmsg)
+
+atexit.register(exit_handling)
+for sig in (signal.SIGABRT, signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
+    signal.signal(sig, exit_handling)
 
 root.mainloop()
