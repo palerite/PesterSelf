@@ -5,6 +5,7 @@ import subprocess
 import datetime
 import time
 import re
+import configparser
 
 
 def get_message_directory():
@@ -17,6 +18,41 @@ def get_message_directory():
         message_directory = home / "AppData" / "Roaming" / "PesterSelf"
 
     return message_directory
+
+
+def get_startup_directory():
+    return Path.home() / """AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"""
+
+
+DEFAULT_SETTINGS = {
+    "launch_on_startup": "False",
+    "notification_size": "3",
+    "inspection_interval": "30",
+}
+
+
+def set_settings(settings):
+    config = configparser.ConfigParser()
+    config["settings"] = {}
+    for setting in settings:
+        config["settings"][setting] = settings[setting]
+    with open("settings.cfg", "w") as out_f:
+        config.write(out_f)
+
+
+def get_settings():
+    settings = {}
+    config = configparser.ConfigParser()
+
+    config.read("settings.cfg")
+
+    if not config.sections():
+        set_settings(DEFAULT_SETTINGS)
+        return DEFAULT_SETTINGS
+    for setting in config["settings"]:
+        settings[setting] = config["settings"][setting]
+
+    return settings
 
 
 def find_messages():

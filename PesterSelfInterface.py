@@ -2,10 +2,10 @@ from tkinter import *
 from tkinter import simpledialog
 from tkinter import messagebox
 # from pathlib import Path
-import os
 # import sys
 # import subprocess
 # import datetime
+import shutil
 from pesterself import *
 import signal
 
@@ -76,6 +76,23 @@ def open_message(msg: Message):
     refresh_message_list()
 
 
+def add_to_startup():
+    try:
+        shutil.copyfile(Path("PesterSelf Notification System.lnk"), get_startup_directory() /
+                        "PesterSelf Notification System.lnk")
+    except FileNotFoundError:
+        messagebox.showinfo("Response", "Couldn't add Notification System to startup apps. \
+                            PesterSelf Notification System.lnk missing ")
+
+
+def remove_from_startup():
+    try:
+        os.remove(get_startup_directory() / "PesterSelf Notification System.lnk")
+    except FileNotFoundError:
+        messagebox.showinfo("Response", "Couldn't remove Notification System from startup apps. \
+        The shortcut name must have been changed.")
+
+
 def stop_notification_system():
     with (get_message_directory()/"notif.log").open() as log:
         pid = int(log.readline())
@@ -84,12 +101,13 @@ def stop_notification_system():
             return
         try:
             os.kill(pid, signal.SIGTERM)
-            messagebox.showinfo("Response", "Successfully stopped the Notification System.\
- Something with its process id, at least ...")
+            messagebox.showinfo("Response", "Successfully stopped the Notification System.")
             with (get_message_directory() / "notif.log").open("w") as log_file:
                 log_file.write("0")
             print("Notification System successfully disabled")
         except PermissionError:
+            messagebox.showinfo("Response", "Couldn't do that. It probably was already stopped.")
+        except OSError:
             messagebox.showinfo("Response", "Couldn't do that. It probably was already stopped.")
 
 
@@ -104,9 +122,122 @@ def start_notification_system():
                 return
             except PermissionError:
                 pass
+            except OSError:
+                pass
 
     open_file("Notification System.vbs")
     messagebox.showinfo("Response", "Notification System started!")
+
+
+class SettingsWindow:
+    def __init__(self):
+        self.tl = Toplevel(root)
+        self.tl.title("PesterSelf settings")
+        self.tl.iconbitmap("icon.ico")
+        sw = self.tl.winfo_screenwidth()
+        self.rw = int(sw / 2.5)
+        rh = int(self.rw * 3 / 4)
+        self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
+        self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
+        top_frame = Frame(self.tl)
+        top_frame.pack(side=TOP, padx=10, pady=10, fill=Y)
+
+        self.settings = get_settings()
+
+        self.inspection_interval, self.interval_entry = self.add_entry_setting(
+            "inspection_interval",
+            "\t Inspection interval (min): ",
+            "How often the Notification System checks for new messages. Effective on Notification System restart",
+        )
+        self.notification_size, self.size_entry = self.add_entry_setting(
+            "notification_size",
+            "Notification size (x / screen width): ",
+            "How big the notification popup is in relation to the screen's width."
+        )
+        self.launch_on_startup, self.startup_check = self.add_check_setting(
+            "launch_on_startup",
+            "Notification System on startup: ",
+            "Determines if the Notification System is launched on device startup."
+        )
+
+        bottom_frame = Frame(self.tl)
+        bottom_frame.pack(side=BOTTOM, padx=20, pady=20)
+        button_apply = Button(bottom_frame, text="Apply", command=self.apply_settings)
+        button_apply.pack(side=LEFT, padx=5)
+        button_close = Button(bottom_frame, text="Close and apply", command=self.destroy)
+        button_close.pack(side=RIGHT, padx=5)
+        button_defaults = Button(bottom_frame, text="Restore defaults", command=self.set_default_settings)
+        button_defaults.pack(side=RIGHT, padx=5)
+
+    def apply_settings(self):
+        new_settings = {
+            "launch_on_startup": str(self.launch_on_startup.get()),
+            "notification_size": str(self.notification_size.get()),
+            "inspection_interval": str(self.inspection_interval.get()),
+        }
+
+        if self.launch_on_startup.get() and new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
+            add_to_startup()
+        elif not self.launch_on_startup.get() and \
+                new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
+            remove_from_startup()
+
+        set_settings(new_settings)
+        self.settings = new_settings
+
+    def set_default_settings(self):
+        if DEFAULT_SETTINGS["launch_on_startup"] != self.settings["launch_on_startup"]:
+            self.startup_check.toggle()
+        self.size_entry.delete(0, 999)
+        self.size_entry.insert(0, DEFAULT_SETTINGS["notification_size"])
+        self.interval_entry.delete(0, 999)
+        self.interval_entry.insert(0, DEFAULT_SETTINGS["inspection_interval"])
+        set_settings(DEFAULT_SETTINGS)
+        self.settings = DEFAULT_SETTINGS
+
+    def add_entry_setting(self, name: str, label_text: str, description: str):
+        frame_setting = Frame(self.tl)
+        frame_setting.pack(side=TOP)
+        setting_label = Label(frame_setting, text=label_text, width=30, justify=RIGHT)
+        setting_label.pack(side=LEFT)
+        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor=W,
+                               justify=LEFT, width=30)
+        setting_label2.pack(side=RIGHT, padx=5, pady=5)
+        setting_variable = StringVar()
+        setting_entry = Entry(frame_setting, textvariable=setting_variable, width=10)
+        setting_entry.insert(0, self.settings[name])
+        setting_entry.pack(side=RIGHT)
+        return setting_variable, setting_entry
+
+    def add_check_setting(self, name: str, label_text: str, description: str):
+        frame_setting = Frame(self.tl)
+        frame_setting.pack(side=TOP)
+        setting_label = Label(frame_setting, text=label_text, width=30, justify=RIGHT)
+        setting_label.pack(side=LEFT)
+        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor=W,
+                               justify=LEFT, width=30)
+        setting_label2.pack(side=RIGHT, padx=5, pady=5)
+        setting_variable = BooleanVar()
+        setting_check = Checkbutton(frame_setting, width=5, variable=setting_variable)
+        if self.settings[name] == "True":
+            setting_check.select()
+        setting_check.pack(side=RIGHT)
+        return setting_variable, setting_check
+
+    def destroy(self):
+        global settings_open
+        self.apply_settings()
+        settings_open = False
+        self.tl.destroy()
+
+
+def open_settings():
+    global settings_open
+    if settings_open:
+        return
+    settings_open = True
+    settings = SettingsWindow()
+    settings.tl.after(30, settings.tl.focus_force)
 
 
 class ScrolledCanvas:
@@ -147,6 +278,7 @@ class ScrolledCanvas:
 
 
 application_exists = True
+settings_open = False
 
 root = Tk()
 root.title("PesterSelf")
@@ -158,6 +290,8 @@ RightFrame.pack(side=RIGHT)
 
 WriteButton = Button(root, text="Write a message", command=write)
 WriteButton.pack(in_=RightFrame, side=TOP)
+SettingsButton = Button(root, text="Settings", command=open_settings)
+SettingsButton.pack(in_=RightFrame, side=TOP)
 OpenFolderButton = Button(root, text="Open message folder", command=open_folder)
 OpenFolderButton.pack(in_=RightFrame, side=TOP)
 RefreshButton = Button(root, text="Refresh list", command=refresh_message_list)
@@ -187,6 +321,10 @@ MessagesLabel.pack(side=TOP)
 read_frame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
 read_frame.pack(padx=5, pady=5, side=TOP, fill=NONE)
 sc_read = ScrolledCanvas(read_frame, "white")
+
+if not Path("settings.cfg").exists():
+    messagebox.showinfo("Thank you for downloading PesterSelf",
+                        "You can set the notification system to turn on automatically on device startup in settings")
 
 buttons = list()
 

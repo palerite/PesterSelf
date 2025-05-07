@@ -7,6 +7,16 @@ testmsg = Message("TestTitle", datetime.datetime.now(), datetime.datetime.now(),
                   get_message_directory() / "null.txt", False)
 notifications_on_screen = 0
 
+with (get_message_directory() / "notif.log").open() as log:
+    pid = int(log.readline())
+    if pid != 0:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except PermissionError:
+            pass
+        except OSError:
+            pass
+
 with (get_message_directory() / "notif.log").open("w") as log:
     log.write(str(os.getpid()))
 
