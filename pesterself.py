@@ -12,10 +12,13 @@ def get_message_directory():
     if sys.platform == "win32":
         home = Path.home()
         message_directory = home / "AppData" / "Roaming" / "PesterSelf"
-        os.chmod(home / "AppData" / "Roaming" / "PesterSelf", 0o666)
+        # os.chmod(home / "AppData" / "Roaming" / "PesterSelf", 0o666)
+    elif sys.platform == "darwin":
+        home = Path.home()
+        message_directory = home / "Application support" / "PesterSelf"
     else:
         home = Path.home()
-        message_directory = home / "AppData" / "Roaming" / "PesterSelf"
+        message_directory = home / ".pesterself"
 
     return message_directory
 
@@ -24,11 +27,29 @@ def get_startup_directory():
     return Path.home() / """AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"""
 
 
+INSTALL_DIRECTORY = os.getcwd()
+
 DEFAULT_SETTINGS = {
     "launch_on_startup": "False",
     "notification_size": "3",
     "inspection_interval": "30",
 }
+
+LINUX_STARTUP_LINES = [
+    "start on runlevel [2345]\n",
+    "stop on runlevel [!2345]\n",
+    "\n",
+    f"exec {INSTALL_DIRECTORY}NotificationSystem.py",
+]
+
+if sys.platform == "win32":
+    NS_NAME = "NotificationSystem.vbs"
+elif sys.platform == "darwin":
+    pass
+else:
+    NS_NAME = "PesterSelfNotificationSystem.py"
+
+BASHRC_LINE = f"\n{INSTALL_DIRECTORY}PesterSelfNotificationSystem.py &\n"
 
 
 def set_settings(settings):
@@ -109,11 +130,12 @@ def datetime_to_msec(dt: datetime.datetime) -> int:
 
 
 def open_file(filename):
-    if sys.platform == "win32":
+    if sys.platform == 'win32':
         os.startfile(filename)
+    elif sys.platform == 'darwin':
+        subprocess.call(('open', filename))
     else:
-        opener = "open" if sys.platform == "darwin" else "xdg-open"
-        subprocess.call([opener, filename])
+        subprocess.call(('xdg-open', filename))
 
 
 class Message:

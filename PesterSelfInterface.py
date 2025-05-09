@@ -48,7 +48,12 @@ def write():
 
 def open_folder():
     message_directory = get_message_directory()
-    os.startfile(message_directory)
+    if sys.platform == "win32":
+        os.startfile(message_directory)
+    elif sys.platform == "darwin":
+        subprocess.call(["open", message_directory])
+    else:
+        subprocess.call(["xdg-open", message_directory])
 
 
 def queue_free():
@@ -77,20 +82,37 @@ def open_message(msg: Message):
 
 
 def add_to_startup():
-    try:
-        shutil.copyfile(Path("PesterSelf Notification System.lnk"), get_startup_directory() /
-                        "PesterSelf Notification System.lnk")
-    except FileNotFoundError:
-        messagebox.showinfo("Response", "Couldn't add Notification System to startup apps. \
-                            PesterSelf Notification System.lnk missing ")
+    if sys.platform == "win32":
+        try:
+            shutil.copyfile(Path("PesterSelf Notification System.lnk"), get_startup_directory() /
+                            "PesterSelf Notification System.lnk")
+        except FileNotFoundError:
+            messagebox.showinfo("Response", "Couldn't add Notification System to startup apps. \
+                                PesterSelf Notification System.lnk missing ")
+    elif sys.platform == "darwin":
+        pass
+    else:
+        with Path(Path.home() / ".bashrc").open("a") as startup_file:
+            startup_file.write(BASHRC_LINE)
 
 
 def remove_from_startup():
-    try:
-        os.remove(get_startup_directory() / "PesterSelf Notification System.lnk")
-    except FileNotFoundError:
-        messagebox.showinfo("Response", "Couldn't remove Notification System from startup apps. \
-        The shortcut name must have been changed.")
+    if sys.platform == "win32":
+        try:
+            os.remove(get_startup_directory() / "PesterSelf Notification System.lnk")
+        except FileNotFoundError:
+            messagebox.showinfo("Response", "Couldn't remove Notification System from startup apps. \
+            The shortcut name must have been changed.")
+    elif sys.platform == "darwin":
+        pass
+    else:
+        with Path(Path.home() / ".bashrc").open("r") as startup_file:
+            lines = startup_file.readlines()
+        for line in lines:
+            if BASHRC_LINE.strip('\n') in line:
+                lines.remove(line)
+        with Path(Path.home() / ".bashrc").open("w") as startup_file:
+            startup_file.writelines(lines)
 
 
 def stop_notification_system():
@@ -117,7 +139,7 @@ def start_notification_system():
         if pid != 0:
             try:
                 os.kill(pid, signal.SIGTERM)
-                open_file("Notification System.vbs")
+                open_file(NS_NAME)
                 messagebox.showinfo("Response", "Notification System restarted!")
                 return
             except PermissionError:
@@ -125,7 +147,7 @@ def start_notification_system():
             except OSError:
                 pass
 
-    open_file("Notification System.vbs")
+    open_file(NS_NAME)
     messagebox.showinfo("Response", "Notification System started!")
 
 
