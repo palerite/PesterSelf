@@ -7,9 +7,10 @@ testmsg = Message("TestTitle", datetime.datetime.now(), datetime.datetime.now(),
                   get_message_directory() / "null.txt", False)
 notifications_on_screen = 0
 
+(get_message_directory() / "notif.log").touch()
 with (get_message_directory() / "notif.log").open() as log:
-    pid = int(log.readline())
-    if pid != 0:
+    pid = check_pid(log)
+    if pid > 0:
         try:
             os.kill(pid, signal.SIGTERM)
         except PermissionError:
@@ -46,7 +47,9 @@ def inspection():
     root.after(int(INSPECTION_INTERVAL * 60 * 1000), inspection)
 
 
-INSPECTION_INTERVAL = 0.2
+settings = get_settings()
+
+INSPECTION_INTERVAL = int(settings["inspection_interval"])
 PESTERSELF_DIRECTORY = "main.py"
 
 root = Tk()
@@ -84,7 +87,7 @@ def notification_popup(msg: Message, window=root):
     window.protocol('WM_DELETE_WINDOW', lambda arg=window: decrease_notification_amount(arg))
     sw = window.winfo_screenwidth()
     sh = window.winfo_screenheight()
-    rw = int(sw / 3)
+    rw = int(sw / int(settings["notification_size"]))
     rh = int(rw * 5 / 16)
     window.geometry(f"{rw}x{rh}+{sw-rw-5}+{sh-rh-72-notifications_on_screen*(rh+36)}")
 

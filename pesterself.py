@@ -27,6 +27,13 @@ def get_startup_directory():
     return Path.home() / """AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"""
 
 
+def check_pid(log_file):
+    ln = log_file.readline()
+    if ln:
+        return int(ln)
+    return -1
+
+
 INSTALL_DIRECTORY = os.getcwd()
 
 DEFAULT_SETTINGS = {
@@ -42,6 +49,13 @@ LINUX_STARTUP_LINES = [
     f"exec {INSTALL_DIRECTORY}NotificationSystem.py",
 ]
 
+SHORTCUT_LINES = [
+    "Set objShell = CreateObject(\"Wscript.Shell\")\n"
+    f"objShell.CurrentDirectory = \"{INSTALL_DIRECTORY}\"\n",
+    "objShell.Run \"NotificationSystemRunner.bat\",0,True",
+]
+print(SHORTCUT_LINES)
+
 if sys.platform == "win32":
     NS_NAME = "NotificationSystem.vbs"
 elif sys.platform == "darwin":
@@ -49,7 +63,7 @@ elif sys.platform == "darwin":
 else:
     NS_NAME = "PesterSelfNotificationSystem.py"
 
-BASHRC_LINE = f"\n{INSTALL_DIRECTORY}PesterSelfNotificationSystem.py &\n"
+BASHRC_LINE = f"\n{INSTALL_DIRECTORY}\\PesterSelfNotificationSystem.py &\n"
 
 
 def set_settings(settings):

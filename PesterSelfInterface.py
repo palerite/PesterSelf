@@ -81,11 +81,18 @@ def open_message(msg: Message):
     refresh_message_list()
 
 
+STARTUP_FILE_NAME = "PesterSelf Notification System shortcut file.vbs"
+
+
 def add_to_startup():
     if sys.platform == "win32":
         try:
-            shutil.copyfile(Path("PesterSelf Notification System.lnk"), get_startup_directory() /
-                            "PesterSelf Notification System.lnk")
+            with open(STARTUP_FILE_NAME, "w") as shortcut:
+                shortcut.writelines(SHORTCUT_LINES)
+
+            shutil.copyfile(Path(STARTUP_FILE_NAME), get_startup_directory() /
+                            STARTUP_FILE_NAME)
+            os.remove(STARTUP_FILE_NAME)
         except FileNotFoundError:
             messagebox.showinfo("Response", "Couldn't add Notification System to startup apps. \
                                 PesterSelf Notification System.lnk missing ")
@@ -99,7 +106,7 @@ def add_to_startup():
 def remove_from_startup():
     if sys.platform == "win32":
         try:
-            os.remove(get_startup_directory() / "PesterSelf Notification System.lnk")
+            os.remove(get_startup_directory() / STARTUP_FILE_NAME)
         except FileNotFoundError:
             messagebox.showinfo("Response", "Couldn't remove Notification System from startup apps. \
             The shortcut name must have been changed.")
@@ -117,7 +124,7 @@ def remove_from_startup():
 
 def stop_notification_system():
     with (get_message_directory()/"notif.log").open() as log:
-        pid = int(log.readline())
+        pid = check_pid(log)
         if pid == 0:
             messagebox.showinfo("Response", "Looks like it was already stopped.")
             return
@@ -135,8 +142,8 @@ def stop_notification_system():
 
 def start_notification_system():
     with (get_message_directory() / "notif.log").open() as log:
-        pid = int(log.readline())
-        if pid != 0:
+        pid = check_pid(log)
+        if pid > 0:
             try:
                 os.kill(pid, signal.SIGTERM)
                 open_file(NS_NAME)
@@ -299,6 +306,7 @@ class ScrolledCanvas:
         self.c.config(scrollregion=(0, 0, 400, len(self.buttons) * space_for_button))
 
 
+(get_message_directory() / "notif.log").touch()
 application_exists = True
 settings_open = False
 
