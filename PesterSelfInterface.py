@@ -48,6 +48,16 @@ def open_message(msg: Message):
     refresh_message_list()
 
 
+def delete_message(msg: Message):
+    answer = messagebox.askyesno("Confirmation", f"Are you sure you want to delete \"{msg.title}\"?\n"
+                                 f"(No undo)")
+    if answer:
+        if msg.delete() == 0:
+            refresh_message_list()
+        else:
+            messagebox.showinfo("Something went wrong")
+
+
 STARTUP_FILE_NAME = "PesterSelf Notification System shortcut file.vbs"
 
 
@@ -366,6 +376,7 @@ class ScrolledCanvas:
         self.buttons = []
         self.frames = []
         self.parent = parent
+        self.del_icon = PhotoImage(file=r"garbage_bin_icon.png")
 
         self.c.config(scrollregion=(0, 0, 400, 100))
         self.c.config(highlightthickness=0)
@@ -384,13 +395,15 @@ class ScrolledCanvas:
         self.buttons.clear()
 
     def add_button(self, message: Message):
-        frm = Frame(self.parent, width=400, height=20, bg="#cfcfcf")
+        frm = Frame(self.parent, width=400, height=20, bg="white")
         frm.config(relief=SUNKEN)
         self.frames.append(frm)
         btn = Button(frm, text="\"" + message.title + f"\" from {message.get_date_sent_pretty()}",
-                     width=54, command=lambda x=message: open_message(x))
+                     width=50, command=lambda x=message: open_message(x))
+        btn_del = Button(frm, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
         self.buttons.append(btn)
-        btn.grid()
+        btn.pack(side=LEFT)
+        btn_del.pack(side=RIGHT)
         space_for_button = 25
         self.c.create_window(5, (space_for_button * len(self.buttons)) - space_for_button, anchor=NW, window=frm)
         self.c.config(scrollregion=(0, 0, 400, len(self.buttons) * space_for_button))

@@ -198,5 +198,12 @@ class Message:
             "File path": self.file_path,
         }
 
+    def delete(self) -> int:
+        try:
+            os.remove(self.file_path)
+            return 0
+        except FileNotFoundError:
+            return 1
+
     def __eq__(self, other):
         return self.file_path == other.file_path
