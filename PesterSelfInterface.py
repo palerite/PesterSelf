@@ -1,5 +1,4 @@
 from tkinter import *
-from tkinter import simpledialog
 from tkinter import messagebox
 # from pathlib import Path
 # import sys
@@ -10,40 +9,8 @@ from pesterself import *
 import signal
 
 
-def write():
-    title = simpledialog.askstring(title="Writing a new message", prompt="\tPlease enter message title: \t\t")
-    if not title:
-        return
-    msg_id = 1
-    message_created = False
-    while not message_created:
-        try:
-            msg_dir = get_message_directory() / ("Message" + str(msg_id) + ".txt")
-            msg_file = msg_dir.open(mode="x")
-            msg_file.writelines([
-                "------------------------------\n",
-                "Status: unread\n",
-                f"Sent: {datetime.datetime.now().strftime('%d.%m.%Y')}\n",
-                "Received: dd.mm.yyyy 00:00\n",
-                "------------------------------\n",
-                title+"\n"
-            ])
-            msg_file.close()
-            with msg_dir.open() as attempt:
-                if attempt.readlines():
-                    open_file(msg_dir)
-                    refresh_message_list()
-                else:
-                    try:
-                        os.remove(msg_dir)
-                    except FileNotFoundError:
-                        pass
-
-            message_created = True
-        except FileExistsError:
-            msg_id += 1
-            
-    return title
+def open_write_dialogue():
+    return MessageWriter()
 
 
 def open_folder():
@@ -158,6 +125,129 @@ def start_notification_system():
     messagebox.showinfo("Response", "Notification System started!")
 
 
+class LabeledEntry(Entry):
+    def __init__(self, parent, label, **kwargs):
+        Entry.__init__(self, parent, **kwargs)
+        self.label = label
+        self.on_exit("<FocusOut>")
+        self.bind("<FocusIn>", self.on_entry)
+        self.bind("<FocusOut>", self.on_exit)
+
+    def on_entry(self, _event):
+        if self.get() == self.label:
+            self.delete(0, "end")
+            self.insert(0, "")
+            self.config(fg="black")
+
+    def on_exit(self, _event):
+        if self.get() == "":
+            self.insert(0, self.label)
+            self.config(fg="grey")
+
+
+class MessageWriter:
+    def __init__(self):
+        self.window = Toplevel(root)
+        self.window.iconbitmap("icon.ico")
+        self.window.title("Writing a new message")
+        # self.window.protocol('WM_DELETE_WINDOW', lambda arg=self.window: decrease_notification_amount(arg))
+        sw = self.window.winfo_screenwidth()
+        sh = self.window.winfo_screenheight()
+        rw = 240
+        rh = int(rw * 3 / 4)
+        self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
+        frame_bottom = Frame(self.window)
+        frame_bottom.pack(side=BOTTOM, padx=5, pady=5, fill=BOTH)
+        frame_right = Frame(self.window)
+        frame_right.pack(side=RIGHT, padx=5, pady=5, fill=X)
+        frame_left = Frame(self.window)
+        frame_left.pack(side=LEFT, padx=5, pady=5, fill=X)
+
+        title_label = Label(frame_left, text="Message title:")
+        title_label.pack(side=TOP)
+        self.date_var = StringVar()
+        self.date_var.trace_add("write", self.watch_date)
+        self.date_var_past = ""
+        date_label = Label(frame_left, text="Delivery date:")
+        date_label.pack(side=BOTTOM)
+
+        self.title_entry = Entry(frame_right)
+        self.title_entry.pack(side=TOP)
+        self.date_entry = LabeledEntry(frame_right, textvariable=self.date_var, label="dd.mm.yyyy hh:mm")
+        self.date_entry.pack(side=BOTTOM)
+
+        ok_button = Button(frame_bottom, text="Create message", command=self.write)
+        ok_button.pack(padx=5)
+        cancel_button = Button(frame_bottom, text="Cancel", command=self.be_gone)
+        cancel_button.pack(padx=5)
+
+    def watch_date(self, _var, _index, _mode):
+        date = self.date_var.get()
+        if len(self.date_var_past) < len(date):
+            if re.match(r"\d{2}$", date):
+                self.date_entry.insert("end", ".")
+            elif re.match(r"\d{2}\.\d{2}$", date):
+                self.date_entry.insert("end", ".")
+            elif re.match(r"\d{2}\.\d{2}\.\d{4}$", date):
+                self.date_entry.insert("end", " ")
+            elif re.match(r"\d{2}\.\d{2}\.\d{4} \d{2}$", date):
+                self.date_entry.insert("end", ":")
+            elif re.match(r"\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}.$", date):
+                print("Oh?")
+                self.date_var.set(self.date_var_past)
+        self.date_var_past = self.date_var.get()
+
+    def be_gone(self):
+        self.window.destroy()
+
+    def write(self):
+        title = self.title_entry.get()
+        date = self.date_entry.get()
+        if not re.match(r"\d{2}\.\d{2}\.\d{4}.*", date) and not title:
+            messagebox.showinfo("Response", "Incorrect date format and empty title")
+            return
+        elif not title:
+            messagebox.showinfo("Response", "Message title can not be empty")
+            return
+        elif not re.match(r"\d{2}\.\d{2}\.\d{4}.*", date):
+            messagebox.showinfo("Response", "Incorrect date format")
+            return
+        elif not is_date_valid(date):
+            print(date)
+            messagebox.showinfo("Response", "Invalid date")
+            return
+
+        msg_id = 1
+        message_created = False
+        while not message_created:
+            try:
+                msg_dir = get_message_directory() / ("Message" + str(msg_id) + ".txt")
+                msg_file = msg_dir.open(mode="x")
+                msg_file.writelines([
+                    "------------------------------\n",
+                    "Status: unread\n",
+                    f"Sent: {datetime.datetime.now().strftime('%d.%m.%Y')}\n",
+                    f"Received: {date}\n",
+                    "------------------------------\n",
+                    title + "\n"
+                ])
+                msg_file.close()
+                with msg_dir.open() as attempt:
+                    if attempt.readlines():
+                        open_file(msg_dir)
+                        refresh_message_list()
+                    else:
+                        try:
+                            os.remove(msg_dir)
+                        except FileNotFoundError:
+                            pass
+
+                message_created = True
+            except FileExistsError:
+                msg_id += 1
+        self.be_gone()
+
+
 class SettingsWindow:
     def __init__(self):
         self.tl = Toplevel(root)
@@ -168,8 +258,8 @@ class SettingsWindow:
         rh = int(self.rw * 3 / 4)
         self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
         self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
-        top_frame = Frame(self.tl)
-        top_frame.pack(side=TOP, padx=10, pady=10, fill=Y)
+        top_frame = Frame(self.tl, borderwidth=5, relief=SUNKEN)
+        top_frame.pack(side=TOP, padx=10, pady=10)
 
         self.settings = get_settings()
 
@@ -314,11 +404,12 @@ root = Tk()
 root.title("PesterSelf")
 root.config(bg="#cfcecc")
 root.iconbitmap("icon.ico")
+DEFAULT_SETTINGS["notification_size"] = str(root.winfo_screenwidth()//3)
 
 RightFrame = Frame(root, bg="#cfcecc")
 RightFrame.pack(side=RIGHT)
 
-WriteButton = Button(root, text="Write a message", command=write)
+WriteButton = Button(root, text="Write a message", command=open_write_dialogue)
 WriteButton.pack(in_=RightFrame, side=TOP)
 SettingsButton = Button(root, text="Settings", command=open_settings)
 SettingsButton.pack(in_=RightFrame, side=TOP)

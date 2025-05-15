@@ -38,7 +38,7 @@ INSTALL_DIRECTORY = os.getcwd()
 
 DEFAULT_SETTINGS = {
     "launch_on_startup": "False",
-    "notification_size": "3",
+    "notification_size": "600",
     "inspection_interval": "30",
 }
 
@@ -54,7 +54,6 @@ SHORTCUT_LINES = [
     f"objShell.CurrentDirectory = \"{INSTALL_DIRECTORY}\"\n",
     "objShell.Run \"NotificationSystemRunner.bat\",0,True",
 ]
-print(SHORTCUT_LINES)
 
 if sys.platform == "win32":
     NS_NAME = "NotificationSystem.vbs"
@@ -131,7 +130,16 @@ def get_message_list():
     return messages
 
 
-def to_datetime(date: str):
+def is_date_valid(date: str) -> bool:
+    try:
+        to_datetime(date)
+        return True
+    except ValueError:
+        return False
+
+
+def to_datetime(date: str) -> datetime.datetime:
+    date = date.strip()
     parts = [int(x) for x in date.split(" ")[0].split(".")]
     if len(date.split(" ")) > 1:
         parts += [int(x) for x in date.split(" ")[1].split(":")]
