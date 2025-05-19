@@ -1,9 +1,4 @@
-from tkinter import *
 from tkinter import messagebox
-# from pathlib import Path
-# import sys
-# import subprocess
-# import datetime
 import shutil
 from pesterself import *
 import signal
@@ -14,13 +9,7 @@ def open_write_dialogue():
 
 
 def open_folder():
-    message_directory = get_message_directory()
-    if sys.platform == "win32":
-        os.startfile(message_directory)
-    elif sys.platform == "darwin":
-        subprocess.call(["open", message_directory])
-    else:
-        subprocess.call(["xdg-open", message_directory])
+    open_file(get_message_directory())
 
 
 def queue_free():
@@ -29,18 +18,18 @@ def queue_free():
 
 
 def refresh_message_list():
-    global sc_read
-    global sc_unread
+    global SCRead
+    global SCUnread
 
     messages = get_message_list()
 
-    sc_read.delete_all_buttons()
-    sc_unread.delete_all_buttons()
+    SCRead.delete_all_buttons()
+    SCUnread.delete_all_buttons()
     for m in messages:
         if not m.read and m.date_received <= datetime.datetime.now():
-            sc_unread.add_button(m)
+            SCUnread.add_button(m)
         elif m.read:
-            sc_read.add_button(m)
+            SCRead.add_button(m)
 
 
 def open_message(msg: Message):
@@ -102,7 +91,7 @@ def remove_from_startup():
 def stop_notification_system():
     with (get_message_directory()/"notif.log").open() as log:
         pid = check_pid(log)
-        if pid == 0:
+        if pid <= 0:
             messagebox.showinfo("Response", "Looks like it was already stopped.")
             return
         try:
@@ -110,7 +99,6 @@ def stop_notification_system():
             messagebox.showinfo("Response", "Successfully stopped the Notification System.")
             with (get_message_directory() / "notif.log").open("w") as log_file:
                 log_file.write("0")
-            print("Notification System successfully disabled")
         except PermissionError:
             messagebox.showinfo("Response", "Couldn't do that. It probably was already stopped.")
         except OSError:
@@ -123,7 +111,7 @@ def start_notification_system():
         if pid > 0:
             try:
                 os.kill(pid, signal.SIGTERM)
-                open_file(NS_NAME)
+                execute_file(NS_NAME)
                 messagebox.showinfo("Response", "Notification System restarted!")
                 return
             except PermissionError:
@@ -131,7 +119,7 @@ def start_notification_system():
             except OSError:
                 pass
 
-    open_file(NS_NAME)
+    execute_file(NS_NAME)
     messagebox.showinfo("Response", "Notification System started!")
 
 
@@ -158,7 +146,7 @@ class LabeledEntry(Entry):
 class MessageWriter:
     def __init__(self):
         self.window = Toplevel(root)
-        self.window.iconbitmap("icon.ico")
+        set_icon(self.window)
         self.window.title("Writing a new message")
         # self.window.protocol('WM_DELETE_WINDOW', lambda arg=self.window: decrease_notification_amount(arg))
         sw = self.window.winfo_screenwidth()
@@ -167,24 +155,24 @@ class MessageWriter:
         rh = int(rw * 3 / 4)
         self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
         frame_bottom = Frame(self.window)
-        frame_bottom.pack(side=BOTTOM, padx=5, pady=5, fill=BOTH)
+        frame_bottom.pack(side="bottom", padx=5, pady=5, fill="both")
         frame_right = Frame(self.window)
-        frame_right.pack(side=RIGHT, padx=5, pady=5, fill=X)
+        frame_right.pack(side="right", padx=5, pady=5, fill="x")
         frame_left = Frame(self.window)
-        frame_left.pack(side=LEFT, padx=5, pady=5, fill=X)
+        frame_left.pack(side="left", padx=5, pady=5, fill="x")
 
         title_label = Label(frame_left, text="Message title:")
-        title_label.pack(side=TOP)
+        title_label.pack(side="top")
         self.date_var = StringVar()
         self.date_var.trace_add("write", self.watch_date)
         self.date_var_past = ""
         date_label = Label(frame_left, text="Delivery date:")
-        date_label.pack(side=BOTTOM)
+        date_label.pack(side="bottom")
 
         self.title_entry = Entry(frame_right)
-        self.title_entry.pack(side=TOP)
+        self.title_entry.pack(side="top")
         self.date_entry = LabeledEntry(frame_right, textvariable=self.date_var, label="dd.mm.yyyy hh:mm")
-        self.date_entry.pack(side=BOTTOM)
+        self.date_entry.pack(side="bottom")
 
         ok_button = Button(frame_bottom, text="Create message", command=self.write)
         ok_button.pack(padx=5)
@@ -203,7 +191,6 @@ class MessageWriter:
             elif re.match(r"\d{2}\.\d{2}\.\d{4} \d{2}$", date):
                 self.date_entry.insert("end", ":")
             elif re.match(r"\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}.$", date):
-                print("Oh?")
                 self.date_var.set(self.date_var_past)
         self.date_var_past = self.date_var.get()
 
@@ -223,7 +210,6 @@ class MessageWriter:
             messagebox.showinfo("Response", "Incorrect date format")
             return
         elif not is_date_valid(date):
-            print(date)
             messagebox.showinfo("Response", "Invalid date")
             return
 
@@ -262,14 +248,14 @@ class SettingsWindow:
     def __init__(self):
         self.tl = Toplevel(root)
         self.tl.title("PesterSelf settings")
-        self.tl.iconbitmap("icon.ico")
+        set_icon(self.tl)
         sw = self.tl.winfo_screenwidth()
         self.rw = int(sw / 2.5)
         rh = int(self.rw * 3 / 4)
         self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
         self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
-        top_frame = Frame(self.tl, borderwidth=5, relief=SUNKEN)
-        top_frame.pack(side=TOP, padx=10, pady=10)
+        top_frame = Frame(self.tl, borderwidth=5, relief="sunken")
+        top_frame.pack(side="top", padx=10, pady=10)
 
         self.settings = get_settings()
 
@@ -290,13 +276,13 @@ class SettingsWindow:
         )
 
         bottom_frame = Frame(self.tl)
-        bottom_frame.pack(side=BOTTOM, padx=20, pady=20)
+        bottom_frame.pack(side="bottom", padx=20, pady=20)
         button_apply = Button(bottom_frame, text="Apply", command=self.apply_settings)
-        button_apply.pack(side=LEFT, padx=5)
+        button_apply.pack(side="left", padx=5)
         button_close = Button(bottom_frame, text="Close and apply", command=self.destroy)
-        button_close.pack(side=RIGHT, padx=5)
+        button_close.pack(side="right", padx=5)
         button_defaults = Button(bottom_frame, text="Restore defaults", command=self.set_default_settings)
-        button_defaults.pack(side=RIGHT, padx=5)
+        button_defaults.pack(side="right", padx=5)
 
     def apply_settings(self):
         new_settings = {
@@ -326,31 +312,31 @@ class SettingsWindow:
 
     def add_entry_setting(self, name: str, label_text: str, description: str):
         frame_setting = Frame(self.tl)
-        frame_setting.pack(side=TOP)
-        setting_label = Label(frame_setting, text=label_text, width=30, justify=RIGHT)
-        setting_label.pack(side=LEFT)
-        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor=W,
-                               justify=LEFT, width=30)
-        setting_label2.pack(side=RIGHT, padx=5, pady=5)
+        frame_setting.pack(side="top")
+        setting_label = Label(frame_setting, text=label_text, width=30, justify="right")
+        setting_label.pack(side="left")
+        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor="w",
+                               justify="left", width=30)
+        setting_label2.pack(side="right", padx=5, pady=5)
         setting_variable = StringVar()
         setting_entry = Entry(frame_setting, textvariable=setting_variable, width=10)
         setting_entry.insert(0, self.settings[name])
-        setting_entry.pack(side=RIGHT)
+        setting_entry.pack(side="right")
         return setting_variable, setting_entry
 
     def add_check_setting(self, name: str, label_text: str, description: str):
         frame_setting = Frame(self.tl)
-        frame_setting.pack(side=TOP)
-        setting_label = Label(frame_setting, text=label_text, width=30, justify=RIGHT)
-        setting_label.pack(side=LEFT)
-        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor=W,
-                               justify=LEFT, width=30)
-        setting_label2.pack(side=RIGHT, padx=5, pady=5)
+        frame_setting.pack(side="top")
+        setting_label = Label(frame_setting, text=label_text, width=30, justify="right")
+        setting_label.pack(side="left")
+        setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor="w",
+                               justify="left", width=30)
+        setting_label2.pack(side="right", padx=5, pady=5)
         setting_variable = BooleanVar()
         setting_check = Checkbutton(frame_setting, width=5, variable=setting_variable)
         if self.settings[name] == "True":
             setting_check.select()
-        setting_check.pack(side=RIGHT)
+        setting_check.pack(side="right")
         return setting_variable, setting_check
 
     def destroy(self):
@@ -385,8 +371,8 @@ class ScrolledCanvas:
         scrollbar.config(command=self.c.yview)
 
         self.c.config(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=RIGHT, fill=Y)
-        self.c.pack(side=LEFT, fill=BOTH)
+        scrollbar.pack(side="right", fill="y")
+        self.c.pack(side="left", fill="both")
 
     def delete_all_buttons(self):
         for frm in self.frames:
@@ -396,18 +382,22 @@ class ScrolledCanvas:
 
     def add_button(self, message: Message):
         frm = Frame(self.parent, width=400, height=20, bg="white")
-        frm.config(relief=SUNKEN)
+        frm.config(relief="sunken")
         self.frames.append(frm)
         btn = Button(frm, text="\"" + message.title + f"\" from {message.get_date_sent_pretty()}",
                      width=50, command=lambda x=message: open_message(x))
         btn_del = Button(frm, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
         self.buttons.append(btn)
-        btn.pack(side=LEFT)
-        btn_del.pack(side=RIGHT)
+        btn.pack(side="left")
+        btn_del.pack(side="right")
         space_for_button = 25
-        self.c.create_window(5, (space_for_button * len(self.buttons)) - space_for_button, anchor=NW, window=frm)
+        self.c.create_window(5, (space_for_button * len(self.buttons)) - space_for_button, anchor="nw", window=frm)
         self.c.config(scrollregion=(0, 0, 400, len(self.buttons) * space_for_button))
 
+try:
+    os.mkdir(get_message_directory())
+except FileExistsError:
+    pass
 
 (get_message_directory() / "notif.log").touch()
 application_exists = True
@@ -416,51 +406,49 @@ settings_open = False
 root = Tk()
 root.title("PesterSelf")
 root.config(bg="#cfcecc")
-root.iconbitmap("icon.ico")
+set_icon(root)
 DEFAULT_SETTINGS["notification_size"] = str(root.winfo_screenwidth()//3)
 
 RightFrame = Frame(root, bg="#cfcecc")
-RightFrame.pack(side=RIGHT)
+RightFrame.pack(side="right")
 
 WriteButton = Button(root, text="Write a message", command=open_write_dialogue)
-WriteButton.pack(in_=RightFrame, side=TOP)
+WriteButton.pack(in_=RightFrame, side="top")
 SettingsButton = Button(root, text="Settings", command=open_settings)
-SettingsButton.pack(in_=RightFrame, side=TOP)
+SettingsButton.pack(in_=RightFrame, side="top")
 OpenFolderButton = Button(root, text="Open message folder", command=open_folder)
-OpenFolderButton.pack(in_=RightFrame, side=TOP)
+OpenFolderButton.pack(in_=RightFrame, side="top")
 RefreshButton = Button(root, text="Refresh list", command=refresh_message_list)
 RefreshButton.pack(in_=RightFrame, pady=20)
 
 
 NotifFrame = Frame(RightFrame, bg="#cfcecc")
-NotifFrame.pack(side=BOTTOM)
+NotifFrame.pack(side="bottom")
 NotifLabel = Label(RightFrame, text="Notification System\ncontrols", bg="#cfcecc")
-NotifLabel.pack(side=TOP)
+NotifLabel.pack(side="top")
 StopButton = Button(root, text="Stop", command=stop_notification_system)
-StopButton.pack(in_=NotifFrame, padx=2, side=RIGHT)
+StopButton.pack(in_=NotifFrame, padx=2, side="right")
 StartButton = Button(root, text="Start", command=start_notification_system)
-StartButton.pack(in_=NotifFrame, padx=2, side=LEFT)
+StartButton.pack(in_=NotifFrame, padx=2, side="left")
 
 FRAME_WIDTH = 200
 FRAME_HEIGHT = 60
 
 MessagesLabel = Label(root, text="Unread messages", bg="#cfcecc")
-MessagesLabel.pack(side=TOP)
-unread_frame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
-unread_frame.pack(padx=5, pady=5, side=TOP, fill=NONE)
-sc_unread = ScrolledCanvas(unread_frame, "white")
+MessagesLabel.pack(side="top")
+UnreadFrame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
+UnreadFrame.pack(padx=5, pady=5, side="top", fill="none")
+SCUnread = ScrolledCanvas(UnreadFrame, "white")
 
 MessagesLabel = Label(root, text="Read messages", bg="#cfcecc")
-MessagesLabel.pack(side=TOP)
-read_frame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
-read_frame.pack(padx=5, pady=5, side=TOP, fill=NONE)
-sc_read = ScrolledCanvas(read_frame, "white")
+MessagesLabel.pack(side="top")
+ReadFrame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
+ReadFrame.pack(padx=5, pady=5, side="top", fill="none")
+SCRead = ScrolledCanvas(ReadFrame, "white")
 
 if not Path("settings.cfg").exists():
     messagebox.showinfo("Thank you for downloading PesterSelf",
                         "You can set the notification system to turn on automatically on device startup in settings")
-
-buttons = list()
 
 refresh_message_list()
 

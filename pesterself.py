@@ -6,21 +6,23 @@ import datetime
 import time
 import re
 import configparser
+from tkinter import *
 
 
 def get_message_directory():
     if sys.platform == "win32":
         home = Path.home()
-        message_directory = home / "AppData" / "Roaming" / "PesterSelf"
+        message_directory = home / "AppData" / "Roaming" / "PesterSelf/"
         # os.chmod(home / "AppData" / "Roaming" / "PesterSelf", 0o666)
     elif sys.platform == "darwin":
         home = Path.home()
-        message_directory = home / "Application support" / "PesterSelf"
+        message_directory = home / "Application support" / "PesterSelf/"
     else:
         home = Path.home()
-        message_directory = home / ".pesterself"
+        message_directory = home / ".pesterself/"
 
     return message_directory
+
 
 
 def get_startup_directory():
@@ -29,9 +31,16 @@ def get_startup_directory():
 
 def check_pid(log_file):
     ln = log_file.readline()
-    if ln:
-        return int(ln)
-    return -1
+    if not ln:
+        return -1
+    return int(ln)
+
+
+def set_icon(window):
+    if sys.platform == "win32":
+        window.iconbitmap("icon.ico")
+    else:
+        window.iconphoto(False, PhotoImage(file='icon.png'))
 
 
 INSTALL_DIRECTORY = os.getcwd()
@@ -58,11 +67,12 @@ SHORTCUT_LINES = [
 if sys.platform == "win32":
     NS_NAME = "NotificationSystem.vbs"
 elif sys.platform == "darwin":
-    pass
+    NS_NAME = "PesterSelfNotificationSystem.py"
 else:
     NS_NAME = "PesterSelfNotificationSystem.py"
 
-BASHRC_LINE = f"\n{INSTALL_DIRECTORY}\\PesterSelfNotificationSystem.py &\n"
+BASHRC_LINE = (f"cd {INSTALL_DIRECTORY} && python {INSTALL_DIRECTORY}/PesterSelfNotificationSystem.py &"
+               f" && cd ~/\n")
 
 
 def set_settings(settings):
@@ -158,6 +168,15 @@ def open_file(filename):
         subprocess.call(('open', filename))
     else:
         subprocess.call(('xdg-open', filename))
+
+
+def execute_file(filename):
+    if sys.platform == 'win32':
+        os.startfile(filename)
+    elif sys.platform == 'darwin':
+        subprocess.call(('open', filename))
+    else:
+        os.system(f"python {filename} &")
 
 
 class Message:
