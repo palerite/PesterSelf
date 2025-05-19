@@ -1,1 +1,0 @@
-CreateObject("Wscript.Shell").Run "InterfaceRunner.bat",0,True

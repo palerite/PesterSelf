@@ -4,6 +4,9 @@ from pesterself import *
 import signal
 
 
+STARTUP_FILE_NAME = "PesterSelf Notification System shortcut file.vbs"
+
+
 def open_write_dialogue():
     return MessageWriter()
 
@@ -12,9 +15,10 @@ def open_folder():
     open_file(get_message_directory())
 
 
-def queue_free():
+def queue_free(wdw: Tk):
     global application_exists
     application_exists = False
+    wdw.destroy()
 
 
 def refresh_message_list():
@@ -45,9 +49,6 @@ def delete_message(msg: Message):
             refresh_message_list()
         else:
             messagebox.showinfo("Something went wrong")
-
-
-STARTUP_FILE_NAME = "PesterSelf Notification System shortcut file.vbs"
 
 
 def add_to_startup():
@@ -362,7 +363,7 @@ class ScrolledCanvas:
         self.buttons = []
         self.frames = []
         self.parent = parent
-        self.del_icon = PhotoImage(file=r"garbage_bin_icon.png")
+        self.del_icon = PhotoImage(file=INSTALL_DIRECTORY / "resources/garbage_bin_icon.png")
 
         self.c.config(scrollregion=(0, 0, 400, 100))
         self.c.config(highlightthickness=0)
@@ -446,13 +447,11 @@ ReadFrame = Frame(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
 ReadFrame.pack(padx=5, pady=5, side="top", fill="none")
 SCRead = ScrolledCanvas(ReadFrame, "white")
 
-if not Path("settings.cfg").exists():
+if not Path(SETTINGS_FILE_PATH).exists():
     messagebox.showinfo("Thank you for downloading PesterSelf",
                         "You can set the notification system to turn on automatically on device startup in settings")
 
 refresh_message_list()
 
-root.protocol("WM_DELETE_WINDOW", queue_free)
-while application_exists:
-    root.update()
-    root.update_idletasks()
+root.protocol("WM_DELETE_WINDOW", root.destroy)
+root.mainloop()

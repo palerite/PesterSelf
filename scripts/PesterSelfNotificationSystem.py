@@ -54,18 +54,6 @@ def inspection():
     root.after(int(INSPECTION_INTERVAL * 60 * 1000), inspection)
 
 
-settings = get_settings()
-
-INSPECTION_INTERVAL = int(settings["inspection_interval"])
-PESTERSELF_DIRECTORY = "PesterSelf Interface.vbs"
-
-root = Tk()
-set_icon(root)
-root.title("PesterSelf notification")
-root.withdraw()
-root.protocol('WM_DELETE_WINDOW', lambda arg=root: decrease_notification_amount(arg))
-
-
 def open_interface():
     open_file(PESTERSELF_DIRECTORY)
 
@@ -115,6 +103,19 @@ def open_message(msg: Message, window):
 #     with (get_message_directory() / "notif.log").open("w") as log_file:
 #         log_file.write("0")
 
+
+
+
+settings = get_settings()
+
+INSPECTION_INTERVAL = int(settings["inspection_interval"])
+PESTERSELF_DIRECTORY = INSTALL_DIRECTORY / "scripts/PesterSelfInterface.vbs"
+
+root = Tk()
+set_icon(root)
+root.title("PesterSelf notification")
+root.withdraw()
+root.protocol('WM_DELETE_WINDOW', lambda arg=root: decrease_notification_amount(arg))
 
 msgs_added = list()
 inspection()

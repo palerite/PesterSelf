@@ -9,41 +9,9 @@ import configparser
 from tkinter import *
 
 
-def get_message_directory():
-    if sys.platform == "win32":
-        home = Path.home()
-        message_directory = home / "AppData" / "Roaming" / "PesterSelf/"
-        # os.chmod(home / "AppData" / "Roaming" / "PesterSelf", 0o666)
-    elif sys.platform == "darwin":
-        home = Path.home()
-        message_directory = home / "Application support" / "PesterSelf/"
-    else:
-        home = Path.home()
-        message_directory = home / ".pesterself/"
+INSTALL_DIRECTORY = Path(os.getcwd()).parent
 
-    return message_directory
-
-
-
-def get_startup_directory():
-    return Path.home() / """AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"""
-
-
-def check_pid(log_file):
-    ln = log_file.readline()
-    if not ln:
-        return -1
-    return int(ln)
-
-
-def set_icon(window):
-    if sys.platform == "win32":
-        window.iconbitmap("icon.ico")
-    else:
-        window.iconphoto(False, PhotoImage(file='icon.png'))
-
-
-INSTALL_DIRECTORY = os.getcwd()
+SETTINGS_FILE_PATH = INSTALL_DIRECTORY / "settings.cfg"
 
 DEFAULT_SETTINGS = {
     "launch_on_startup": "False",
@@ -75,12 +43,46 @@ BASHRC_LINE = (f"cd {INSTALL_DIRECTORY} && python {INSTALL_DIRECTORY}/PesterSelf
                f" && cd ~/\n")
 
 
+def get_message_directory():
+    if sys.platform == "win32":
+        home = Path.home()
+        message_directory = home / "AppData" / "Roaming" / "PesterSelf/"
+        # os.chmod(home / "AppData" / "Roaming" / "PesterSelf", 0o666)
+    elif sys.platform == "darwin":
+        home = Path.home()
+        message_directory = home / "Application support" / "PesterSelf/"
+    else:
+        home = Path.home()
+        message_directory = home / ".pesterself/"
+
+    return message_directory
+
+
+
+def get_startup_directory():
+    return Path.home() / """AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"""
+
+
+def check_pid(log_file):
+    ln = log_file.readline()
+    if not ln:
+        return -1
+    return int(ln)
+
+
+def set_icon(window):
+    if sys.platform == "win32":
+        window.iconbitmap(INSTALL_DIRECTORY / "resources/icon.ico")
+    else:
+        window.iconphoto(False, PhotoImage(file=INSTALL_DIRECTORY / "resources/icon.png"))
+
+
 def set_settings(settings):
     config = configparser.ConfigParser()
     config["settings"] = {}
     for setting in settings:
         config["settings"][setting] = settings[setting]
-    with open("settings.cfg", "w") as out_f:
+    with open(SETTINGS_FILE_PATH, "w") as out_f:
         config.write(out_f)
 
 
@@ -88,7 +90,7 @@ def get_settings():
     settings = {}
     config = configparser.ConfigParser()
 
-    config.read("settings.cfg")
+    config.read(SETTINGS_FILE_PATH)
 
     if not config.sections():
         set_settings(DEFAULT_SETTINGS)
