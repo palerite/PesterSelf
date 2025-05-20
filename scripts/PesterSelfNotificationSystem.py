@@ -42,14 +42,14 @@ def inspection():
     for msg in messages:
         if not msg.read and msg not in msgs_added:
             time_amount = max(datetime_to_msec(msg.date_received) - int(time.time() * 1000),
-                              3000 + msgs_instantly * 1000)
+                              5000 + msgs_instantly * 1000)
             if time_amount > INSPECTION_INTERVAL*60*1000:
                 continue
             root.after(
                 int(time_amount),
                 notification_popup, msg)
             msgs_added.append(msg)
-            if datetime_to_msec(msg.date_received) - int(time.time() * 1000.0) < 3000:
+            if datetime_to_msec(msg.date_received) - int(time.time() * 1000.0) < 5000:
                 msgs_instantly += 1
     root.after(int(INSPECTION_INTERVAL * 60 * 1000), inspection)
 
@@ -113,9 +113,19 @@ PESTERSELF_DIRECTORY = INSTALL_DIRECTORY / "scripts/PesterSelfInterface.vbs"
 
 root = Tk()
 set_icon(root)
-root.title("PesterSelf notification")
-root.withdraw()
-root.protocol('WM_DELETE_WINDOW', lambda arg=root: decrease_notification_amount(arg))
+root.title("PesterSelf Notification System")
+calmingLabel = Label(root, text="This is PesterSelf Notification System.\nClosing this window in 3")
+calmingLabel.pack()
+
+
+
+
+
+for i in range(2000, -1000, -1000):
+    root.after(3000 - i, lambda x=f"This is PesterSelf Notification System.\n"
+                                    f"Closing this window in {i//1000}": calmingLabel.config(text=x))
+root.after(3000, root.withdraw)
+root.protocol('WM_DELETE_WINDOW', root.withdraw)
 
 msgs_added = list()
 inspection()

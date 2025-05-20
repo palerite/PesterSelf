@@ -17,6 +17,7 @@ DEFAULT_SETTINGS = {
     "launch_on_startup": "False",
     "notification_size": "600",
     "inspection_interval": "30",
+    "startup_file": ".bash_profile" if (Path.home() / ".bash_profile").exists() else ".profile",
 }
 
 LINUX_STARTUP_LINES = [
@@ -28,7 +29,7 @@ LINUX_STARTUP_LINES = [
 
 SHORTCUT_LINES = [
     "Set objShell = CreateObject(\"Wscript.Shell\")\n"
-    f"objShell.CurrentDirectory = \"{INSTALL_DIRECTORY}\"\n",
+    f"objShell.CurrentDirectory = \"{INSTALL_DIRECTORY}\\scripts\"\n",
     "objShell.Run \"NotificationSystemRunner.bat\",0,True",
 ]
 
@@ -39,8 +40,16 @@ elif sys.platform == "darwin":
 else:
     NS_NAME = "PesterSelfNotificationSystem.py"
 
-BASHRC_LINE = (f"cd {INSTALL_DIRECTORY} && python {INSTALL_DIRECTORY}/PesterSelfNotificationSystem.py &"
-               f" && cd ~/\n")
+BASHRC_LINES = [
+    "\n# The following line launches PesterSelf Notification System. "
+               "You can remove it by unchecking the 'run on startup' box in PesterSelf Settings\n",
+   f"{INSTALL_DIRECTORY}/scripts/NotificationSystemRunner.sh\n",
+]
+
+NOTIFICATION_RUNNER_LINES = [
+    "#!/bin/sh\n",
+    f"cd {INSTALL_DIRECTORY}/scripts && python PesterSelfNotificationSystem.py &\n"
+]
 
 
 def get_message_directory():
@@ -97,6 +106,11 @@ def get_settings():
         return DEFAULT_SETTINGS
     for setting in config["settings"]:
         settings[setting] = config["settings"][setting]
+
+    for setting in DEFAULT_SETTINGS:
+        if setting not in settings:
+            settings[setting] = DEFAULT_SETTINGS[setting]
+            print(setting)
 
     return settings
 

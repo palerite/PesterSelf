@@ -52,6 +52,7 @@ def delete_message(msg: Message):
 
 
 def add_to_startup():
+    startup_file_name = get_settings()["startup_file"]
     if sys.platform == "win32":
         try:
             with open(STARTUP_FILE_NAME, "w") as shortcut:
@@ -66,11 +67,15 @@ def add_to_startup():
     elif sys.platform == "darwin":
         pass
     else:
-        with Path(Path.home() / ".bashrc").open("a") as startup_file:
-            startup_file.write(BASHRC_LINE)
+        with open("NotificationSystemRunner.sh", "w") as shell_file:
+            shell_file.writelines(NOTIFICATION_RUNNER_LINES)
+        os.system("chmod +x NotificationSystemRunner.sh")
+        with Path(Path.home() / startup_file_name).open("a") as startup_file:
+            startup_file.writelines(BASHRC_LINES)
 
 
 def remove_from_startup():
+    startup_file_name = get_settings()["startup_file"]
     if sys.platform == "win32":
         try:
             os.remove(get_startup_directory() / STARTUP_FILE_NAME)
@@ -80,12 +85,16 @@ def remove_from_startup():
     elif sys.platform == "darwin":
         pass
     else:
-        with Path(Path.home() / ".bashrc").open("r") as startup_file:
+        with Path(Path.home() / startup_file_name).open("r") as startup_file:
             lines = startup_file.readlines()
+        lines_to_remove = list()
         for line in lines:
-            if BASHRC_LINE.strip('\n') in line:
-                lines.remove(line)
-        with Path(Path.home() / ".bashrc").open("w") as startup_file:
+            for l in BASHRC_LINES:
+                if l.strip('\n') in line:
+                    lines_to_remove.append(line)
+        for line in lines_to_remove:
+            lines.remove(line)
+        with Path(Path.home() / startup_file_name).open("w") as startup_file:
             startup_file.writelines(lines)
 
 
@@ -179,6 +188,7 @@ class MessageWriter:
         ok_button.pack(padx=5)
         cancel_button = Button(frame_bottom, text="Cancel", command=self.be_gone)
         cancel_button.pack(padx=5)
+        self.title_entry.focus_force()
 
     def watch_date(self, _var, _index, _mode):
         date = self.date_var.get()
@@ -251,7 +261,7 @@ class SettingsWindow:
         self.tl.title("PesterSelf settings")
         set_icon(self.tl)
         sw = self.tl.winfo_screenwidth()
-        self.rw = int(sw / 2.5)
+        self.rw = int(sw / 2)
         rh = int(self.rw * 3 / 4)
         self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
         self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
@@ -272,9 +282,18 @@ class SettingsWindow:
         )
         self.launch_on_startup, self.startup_check = self.add_check_setting(
             "launch_on_startup",
-            "Notification System on startup: ",
-            "Determines if the Notification System is launched on device startup."
+            "Notification System on device startup: ",
+            "Determines if the Notification System is launched on device startup.",
         )
+        self.startup_file, self.file_entry = self.add_entry_setting(
+        "startup_file",
+        "Custom startup file path: ",
+        "Please only change this if you know what you are doing. "
+        "can only be altered if 'Notification System on startup' is currently disabled",
+            visible=sys.platform not in ["win32", "darwin"]
+        )
+        if self.settings["launch_on_startup"] == "True":
+            self.file_entry.config(state="disabled")
 
         bottom_frame = Frame(self.tl)
         bottom_frame.pack(side="bottom", padx=20, pady=20)
@@ -290,13 +309,16 @@ class SettingsWindow:
             "launch_on_startup": str(self.launch_on_startup.get()),
             "notification_size": str(self.notification_size.get()),
             "inspection_interval": str(self.inspection_interval.get()),
+            "startup_file": str(self.startup_file.get())
         }
 
         if self.launch_on_startup.get() and new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
             add_to_startup()
+            self.file_entry.config(state="disabled")
         elif not self.launch_on_startup.get() and \
                 new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
             remove_from_startup()
+            self.file_entry.config(state="normal")
 
         set_settings(new_settings)
         self.settings = new_settings
@@ -308,12 +330,15 @@ class SettingsWindow:
         self.size_entry.insert(0, DEFAULT_SETTINGS["notification_size"])
         self.interval_entry.delete(0, 999)
         self.interval_entry.insert(0, DEFAULT_SETTINGS["inspection_interval"])
+        self.file_entry.delete(0, 999)
+        self.file_entry.insert(0, DEFAULT_SETTINGS["startup_file"])
         set_settings(DEFAULT_SETTINGS)
         self.settings = DEFAULT_SETTINGS
 
-    def add_entry_setting(self, name: str, label_text: str, description: str):
+    def add_entry_setting(self, name: str, label_text: str, description: str, visible=True):
         frame_setting = Frame(self.tl)
-        frame_setting.pack(side="top")
+        if visible:
+            frame_setting.pack(side="top")
         setting_label = Label(frame_setting, text=label_text, width=30, justify="right")
         setting_label.pack(side="left")
         setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor="w",
@@ -321,13 +346,19 @@ class SettingsWindow:
         setting_label2.pack(side="right", padx=5, pady=5)
         setting_variable = StringVar()
         setting_entry = Entry(frame_setting, textvariable=setting_variable, width=10)
-        setting_entry.insert(0, self.settings[name])
+        try:
+            setting_entry.insert(0, self.settings[name])
+        except KeyError:
+            setting_entry.insert(0, DEFAULT_SETTINGS[name])
+            self.settings["name"] = DEFAULT_SETTINGS[name]
+
         setting_entry.pack(side="right")
         return setting_variable, setting_entry
 
-    def add_check_setting(self, name: str, label_text: str, description: str):
+    def add_check_setting(self, name: str, label_text: str, description: str, visible = True):
         frame_setting = Frame(self.tl)
-        frame_setting.pack(side="top")
+        if visible:
+            frame_setting.pack(side="top")
         setting_label = Label(frame_setting, text=label_text, width=30, justify="right")
         setting_label.pack(side="left")
         setting_label2 = Label(frame_setting, text=description, wraplength=150, anchor="w",
@@ -335,8 +366,13 @@ class SettingsWindow:
         setting_label2.pack(side="right", padx=5, pady=5)
         setting_variable = BooleanVar()
         setting_check = Checkbutton(frame_setting, width=5, variable=setting_variable)
-        if self.settings[name] == "True":
-            setting_check.select()
+        try:
+            if self.settings[name] == "True":
+                setting_check.select()
+        except KeyError:
+            if DEFAULT_SETTINGS[name] == "True":
+                setting_check.select()
+            self.settings[name] = DEFAULT_SETTINGS[name]
         setting_check.pack(side="right")
         return setting_variable, setting_check
 
