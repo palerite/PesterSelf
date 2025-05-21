@@ -1,4 +1,5 @@
 from tkinter import messagebox
+import tkinter.font
 import shutil
 from pesterself import *
 import signal
@@ -27,8 +28,11 @@ def refresh_message_list():
 
     messages = get_message_list()
 
-    SCRead.delete_all_buttons()
-    SCUnread.delete_all_buttons()
+    SCRead.be_gone()
+    SCUnread.be_gone()
+    SCUnread = ScrolledCanvas(UnreadFrame, "white")
+    SCRead = ScrolledCanvas(ReadFrame, "white")
+
     for m in messages:
         if not m.read and m.date_received <= datetime.datetime.now():
             SCUnread.add_button(m)
@@ -133,6 +137,12 @@ def start_notification_system():
     messagebox.showinfo("Response", "Notification System started!")
 
 
+def set_text_size(s: int):
+    global CHARACTER_WIDTH
+    default_font.configure(size=s)
+    CHARACTER_WIDTH = default_font.measure("n")
+
+
 class LabeledEntry(Entry):
     def __init__(self, parent, label, **kwargs):
         Entry.__init__(self, parent, **kwargs)
@@ -161,9 +171,9 @@ class MessageWriter:
         # self.window.protocol('WM_DELETE_WINDOW', lambda arg=self.window: decrease_notification_amount(arg))
         sw = self.window.winfo_screenwidth()
         sh = self.window.winfo_screenheight()
-        rw = 240
-        rh = int(rw * 3 / 4)
-        self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
+        # rw = 240
+        # rh = int(rw * 3 / 4)
+        # self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
         frame_bottom = Frame(self.window)
         frame_bottom.pack(side="bottom", padx=5, pady=5, fill="both")
         frame_right = Frame(self.window)
@@ -255,6 +265,75 @@ class MessageWriter:
         self.be_gone()
 
 
+class WidgetSetting:
+    def __init__(self, parent, name: str, label_text: str, description: str, visible=True):
+        self.setting_frame = Frame(parent)
+        self.name = name
+        if visible:
+            self.setting_frame.pack(side="top")
+        setting_label = Label(self.setting_frame, text=label_text, width=30, justify="right")
+        setting_label.pack(side="left")
+        setting_label2 = Label(self.setting_frame, text=description, wraplength=150, anchor="w",
+                               justify="left", width=30)
+        setting_label2.pack(side="right", padx=5, pady=5)
+        self.setting_variable = StringVar()
+        self.setting_widget = Label(self.setting_frame)
+
+    def get(self):
+        return self.setting_variable.get()
+
+    def set_default(self):
+        pass
+
+
+class EntrySetting(WidgetSetting):
+    def __init__(self, parent, name: str, label_text: str, description: str, visible=True):
+        super().__init__(parent, name, label_text, description, visible)
+        self.setting_widget = Entry(self.setting_frame, textvariable=self.setting_variable, width=10)
+        self.setting_widget.insert(0, get_settings()[name])
+
+        self.setting_widget.pack(side="right")
+
+    def set_default(self):
+        self.setting_widget.delete(0, "end")
+        self.setting_widget.insert(0, DEFAULT_SETTINGS[self.name])
+
+
+class CheckboxSetting(WidgetSetting):
+    def __init__(self, parent, name: str, label_text: str, description: str, visible=True):
+        super().__init__(parent, name, label_text, description, visible)
+        self.setting_widget = Checkbutton(self.setting_frame, width=5, variable=self.setting_variable)
+        if get_settings()[name] == "True":
+            self.setting_widget.select()
+        self.setting_widget.pack(side="right")
+
+    def set_default(self):
+        if DEFAULT_SETTINGS["launch_on_startup"] != self.get():
+            self.setting_widget.toggle()
+
+
+class SpinboxSetting(WidgetSetting):
+    def __init__(self, parent, name: str, label_text: str, description: str, mn: int, mx: int, visible=True):
+        super().__init__(parent, name, label_text, description, visible)
+        self.minimal_value = mn
+        self.maximal_value = mx
+        self.setting_widget = Spinbox(self.setting_frame, textvariable=self.setting_variable, from_=mn, to=mx)
+        self.setting_widget.delete(0, "end")
+        self.setting_widget.insert(1, get_settings()[name])
+
+        self.setting_widget.pack(side="right")
+
+    def set_default(self):
+        self.setting_widget.delete(0, "end")
+        self.setting_widget.insert(0, DEFAULT_SETTINGS[self.name])
+
+    def get(self):
+        try:
+            return str(min(self.maximal_value, max(self.minimal_value, int(self.setting_variable.get()))))
+        except ValueError:
+            return DEFAULT_SETTINGS[self.name]
+
+
 class SettingsWindow:
     def __init__(self):
         self.tl = Toplevel(root)
@@ -265,75 +344,83 @@ class SettingsWindow:
         rh = int(self.rw * 3 / 4)
         self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
         self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
-        top_frame = Frame(self.tl, borderwidth=5, relief="sunken")
-        top_frame.pack(side="top", padx=10, pady=10)
-
-        self.settings = get_settings()
-
-        self.inspection_interval, self.interval_entry = self.add_entry_setting(
-            "inspection_interval",
-            "\t Inspection interval (min): ",
-            "How often the Notification System checks for new messages. Effective on Notification System restart",
-        )
-        self.notification_size, self.size_entry = self.add_entry_setting(
-            "notification_size",
-            "Notification size (x / screen width): ",
-            "How big the notification popup is in relation to the screen's width."
-        )
-        self.launch_on_startup, self.startup_check = self.add_check_setting(
-            "launch_on_startup",
-            "Notification System on device startup: ",
-            "Determines if the Notification System is launched on device startup.",
-        )
-        self.startup_file, self.file_entry = self.add_entry_setting(
-        "startup_file",
-        "Custom startup file path: ",
-        "Please only change this if you know what you are doing. "
-        "can only be altered if 'Notification System on startup' is currently disabled",
-            visible=sys.platform not in ["win32", "darwin"]
-        )
-        if self.settings["launch_on_startup"] == "True":
-            self.file_entry.config(state="disabled")
 
         bottom_frame = Frame(self.tl)
+        button_defaults = Button(bottom_frame, text="Restore defaults", command=self.set_default_settings)
+        button_defaults.pack(side="right", padx=5)
         bottom_frame.pack(side="bottom", padx=20, pady=20)
         button_apply = Button(bottom_frame, text="Apply", command=self.apply_settings)
         button_apply.pack(side="left", padx=5)
         button_close = Button(bottom_frame, text="Close and apply", command=self.destroy)
         button_close.pack(side="right", padx=5)
-        button_defaults = Button(bottom_frame, text="Restore defaults", command=self.set_default_settings)
-        button_defaults.pack(side="right", padx=5)
+
+        top_frame = Frame(self.tl, borderwidth=5, relief="sunken")
+        top_frame.pack(side="top", padx=10, pady=10)
+
+        self.settings = get_settings()
+
+        self.setting_widgets: dict[str, WidgetSetting] = dict()
+
+        self.setting_widgets["text_size"] = SpinboxSetting(self.tl,
+            "text_size",
+            "Text size: ",
+            "How big the Text is in the interface. No effect on Notification System.",
+            5, 24
+        )
+        self.setting_widgets["inspection_interval"] = SpinboxSetting(self.tl,
+            "inspection_interval",
+            "\t Inspection interval (min): ",
+            "How often the Notification System checks for new messages. Effective on Notification System restart",
+            1, 9999
+        )
+        self.setting_widgets["notification_size"] = SpinboxSetting(self.tl,
+            "notification_size",
+            "Notification size (px): ",
+            "How wide the notification popup is.",
+            100, 9999
+        )
+        self.setting_widgets["launch_on_startup"] = CheckboxSetting(self.tl,
+            "launch_on_startup",
+            "Notification System on device startup: ",
+            "Determines if the Notification System is launched on device startup.",
+        )
+        self.setting_widgets["startup_file"] = EntrySetting(self.tl,
+        "startup_file",
+        "Custom startup file path: ",
+        "Please only change this if you know what you are doing. "
+        "can only be altered if Notification System on startup' is currently disabled",
+        visible=sys.platform not in ["win32", "darwin"])
+
+        if self.settings["launch_on_startup"] == "True":
+            self.setting_widgets["startup_file"].setting_widget.config(state="disabled")
 
     def apply_settings(self):
-        new_settings = {
-            "launch_on_startup": str(self.launch_on_startup.get()),
-            "notification_size": str(self.notification_size.get()),
-            "inspection_interval": str(self.inspection_interval.get()),
-            "startup_file": str(self.startup_file.get())
-        }
+        new_settings = dict()
 
-        if self.launch_on_startup.get() and new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
+        for widget in self.setting_widgets.values():
+            new_settings[widget.name] = widget.get()
+
+        if self.setting_widgets["launch_on_startup"].get() and new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
             add_to_startup()
-            self.file_entry.config(state="disabled")
-        elif not self.launch_on_startup.get() and \
+            self.setting_widgets["startup_file"].setting_widget.config(state="disabled")
+        elif not self.setting_widgets["launch_on_startup"].get() and \
                 new_settings["launch_on_startup"] != self.settings["launch_on_startup"]:
             remove_from_startup()
-            self.file_entry.config(state="normal")
+            self.setting_widgets["launch_on_startup"].setting_widget.config(state="normal")
+
+        set_text_size(int(new_settings["text_size"]))
 
         set_settings(new_settings)
         self.settings = new_settings
 
+        refresh_message_list()
+
     def set_default_settings(self):
-        if DEFAULT_SETTINGS["launch_on_startup"] != self.settings["launch_on_startup"]:
-            self.startup_check.toggle()
-        self.size_entry.delete(0, 999)
-        self.size_entry.insert(0, DEFAULT_SETTINGS["notification_size"])
-        self.interval_entry.delete(0, 999)
-        self.interval_entry.insert(0, DEFAULT_SETTINGS["inspection_interval"])
-        self.file_entry.delete(0, 999)
-        self.file_entry.insert(0, DEFAULT_SETTINGS["startup_file"])
+        for widget in self.setting_widgets.values():
+            widget.set_default()
         set_settings(DEFAULT_SETTINGS)
         self.settings = DEFAULT_SETTINGS
+        self.apply_settings()
 
     def add_entry_setting(self, name: str, label_text: str, description: str, visible=True):
         frame_setting = Frame(self.tl)
@@ -394,21 +481,22 @@ def open_settings():
 
 class ScrolledCanvas:
     def __init__(self, parent, color='brown'):
+        self.width = CHARACTER_WIDTH * 60
         self.c = Canvas(parent, bg=color)
-        self.c.config(width=400, height=100)
+        self.c.config(width=self.width, height=100)
         self.buttons = []
         self.frames = []
         self.parent = parent
         self.del_icon = PhotoImage(file=INSTALL_DIRECTORY / "resources/garbage_bin_icon.png")
 
-        self.c.config(scrollregion=(0, 0, 400, 100))
+        self.c.config(scrollregion=(0, 0, self.width, 100))
         self.c.config(highlightthickness=0)
 
-        scrollbar = Scrollbar(parent)
-        scrollbar.config(command=self.c.yview)
+        self.scrollbar = Scrollbar(parent)
+        self.scrollbar.config(command=self.c.yview)
 
-        self.c.config(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
+        self.c.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.pack(side="right", fill="y")
         self.c.pack(side="left", fill="both")
 
     def delete_all_buttons(self):
@@ -418,18 +506,24 @@ class ScrolledCanvas:
         self.buttons.clear()
 
     def add_button(self, message: Message):
-        frm = Frame(self.parent, width=400, height=20, bg="white")
+        frm = Frame(self.parent, width=self.width, height=20, bg="white")
         frm.config(relief="sunken")
         self.frames.append(frm)
         btn = Button(frm, text="\"" + message.title + f"\" from {message.get_date_sent_pretty()}",
-                     width=50, command=lambda x=message: open_message(x))
-        btn_del = Button(frm, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
+                     width=45, command=lambda x=message: open_message(x))
+        btn_del = Button(frm, width=CHARACTER_WIDTH*5, height=CHARACTER_WIDTH*3+5, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
         self.buttons.append(btn)
         btn.pack(side="left")
         btn_del.pack(side="right")
         space_for_button = 25
         self.c.create_window(5, (space_for_button * len(self.buttons)) - space_for_button, anchor="nw", window=frm)
-        self.c.config(scrollregion=(0, 0, 400, len(self.buttons) * space_for_button))
+        self.c.config(scrollregion=(0, 0, self.width, len(self.buttons) * space_for_button))
+
+
+    def be_gone(self):
+        self.delete_all_buttons()
+        self.scrollbar.destroy()
+        self.c.destroy()
 
 try:
     os.mkdir(get_message_directory())
@@ -444,10 +538,13 @@ root = Tk()
 root.title("PesterSelf")
 root.config(bg="#cfcecc")
 set_icon(root)
-DEFAULT_SETTINGS["notification_size"] = str(root.winfo_screenwidth()//3)
+
+default_font = tkinter.font.nametofont("TkDefaultFont")
+set_text_size(int(get_settings()["text_size"]))
+
 
 RightFrame = Frame(root, bg="#cfcecc")
-RightFrame.pack(side="right")
+RightFrame.pack(side="right", padx=10)
 
 WriteButton = Button(root, text="Write a message", command=open_write_dialogue)
 WriteButton.pack(in_=RightFrame, side="top")
@@ -468,7 +565,7 @@ StopButton.pack(in_=NotifFrame, padx=2, side="right")
 StartButton = Button(root, text="Start", command=start_notification_system)
 StartButton.pack(in_=NotifFrame, padx=2, side="left")
 
-FRAME_WIDTH = 200
+FRAME_WIDTH = CHARACTER_WIDTH * 60
 FRAME_HEIGHT = 60
 
 MessagesLabel = Label(root, text="Unread messages", bg="#cfcecc")

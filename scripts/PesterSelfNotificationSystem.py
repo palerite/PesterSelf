@@ -1,5 +1,6 @@
 from pesterself import *
 import signal
+import tkinter.font
 
 testmsg = Message("TestTitle", datetime.datetime.now(), datetime.datetime.now(),
                   get_message_directory() / "null.txt", False)
@@ -73,16 +74,16 @@ def notification_popup(msg: Message):
     rh = int(rw * 5 / 16)
     window.geometry(f"{rw}x{rh}+{sw-rw-5}+{sh-rh-72-notifications_on_screen*(rh+36)}")
 
-    padding_px = 10
+    padding_px = 5
 
-    frame_left = Frame(window)
-    frame_left.pack(side="left", padx=padding_px, pady=padding_px)
-    frame_right = Frame(window)
-    frame_right.pack(side="right", padx=padding_px, pady=padding_px)
+    frame_right = Frame(window, width=CHARACTER_WIDTH*15)
+    frame_right.pack(side="right", padx=padding_px, pady=rh//5, fill="both", expand=True)
+    frame_left = Frame(window, width=CHARACTER_WIDTH*40)
+    frame_left.pack(side="right", padx=padding_px, pady=rh//4, fill="both", expand=True)
 
     label = Label(frame_left,
-                  text=f"\tYou have a new message from yourself!\n\n\t\"{msg.title}\" from {msg.get_date_sent_pretty()}")
-    label.pack()
+                  text=f"You have a new message from yourself!\n\n\"{msg.title}\" from {msg.get_date_sent_pretty()}")
+    label.pack(anchor="center")
 
     open_button = Button(frame_right, text="Open the message", command=lambda x=msg, y=window: open_message(x, y))
     open_button.pack(pady=padding_px)
@@ -114,16 +115,22 @@ PESTERSELF_DIRECTORY = INSTALL_DIRECTORY / "scripts/PesterSelfInterface.vbs"
 root = Tk()
 set_icon(root)
 root.title("PesterSelf Notification System")
-calmingLabel = Label(root, text="This is PesterSelf Notification System.\nClosing this window in 3")
+
+default_font = tkinter.font.nametofont("TkDefaultFont")
+s = 20
+default_font.configure(size=s)
+while default_font.measure("n") * 61 > int(settings["notification_size"]):
+    s -= 1
+    default_font.configure(size=s)
+CHARACTER_WIDTH = default_font.measure("n")
+
+calmingLabel = Label(root, text="PesterSelf Notification System launched.\nClosing this info window in 3")
 calmingLabel.pack()
 
 
-
-
-
 for i in range(2000, -1000, -1000):
-    root.after(3000 - i, lambda x=f"This is PesterSelf Notification System.\n"
-                                    f"Closing this window in {i//1000}": calmingLabel.config(text=x))
+    root.after(3000 - i, lambda x=f"PesterSelf Notification System launched.\n"
+                                    f"Closing this info window in {i//1000}": calmingLabel.config(text=x))
 root.after(3000, root.withdraw)
 root.protocol('WM_DELETE_WINDOW', root.withdraw)
 

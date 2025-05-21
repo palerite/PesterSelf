@@ -15,7 +15,8 @@ SETTINGS_FILE_PATH = INSTALL_DIRECTORY / "settings.cfg"
 
 DEFAULT_SETTINGS = {
     "launch_on_startup": "False",
-    "notification_size": "600",
+    "notification_size": "450",
+    "text_size": "10",
     "inspection_interval": "30",
     "startup_file": ".bash_profile" if (Path.home() / ".bash_profile").exists() else ".profile",
 }
@@ -110,7 +111,6 @@ def get_settings():
     for setting in DEFAULT_SETTINGS:
         if setting not in settings:
             settings[setting] = DEFAULT_SETTINGS[setting]
-            print(setting)
 
     return settings
 
