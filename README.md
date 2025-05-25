@@ -25,7 +25,7 @@ I used to do that through the calendar app on my phone but after "sending a mess
 ### Prerequisites
 You just need python 3 and its standard library for PesterSelf to run: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 ### Installation
-- Download the win32 release from [the github page](https://github.com/palerite/PesterSelf/) and unpack the archive in a folder of your liking. 
+- Download the win32 release from [the release page](https://github.com/palerite/PesterSelf/releases) and unpack the archive in a folder of your liking. 
 - Run `Create Shortcut to Interface.vbs` and use the created shortcut to access the app.
 ## Linux
 
@@ -33,7 +33,7 @@ You just need python 3 and its standard library for PesterSelf to run: [https://
 - You need python 3 and its standard library for PesterSelf to run: [https://docs.python.org/3/using/unix.html](https://docs.python.org/3/using/unix.html)
 - Tkinter may not be included in your distribution, if that is the case, install it with `pip install tkinter`
 ### Installation
-- Download the linux release from [the github page](https://github.com/palerite/PesterSelf/) and unpack the archive in a folder of your liking.
+- Download the linux release from [the release page](https://github.com/palerite/PesterSelf/releases) and unpack the archive in a folder of your liking.
 - Use `PesterSelfInterface.sh` to access the app
 
 # Usage
