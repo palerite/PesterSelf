@@ -26,12 +26,13 @@ def refresh_message_list():
     global SCRead
     global SCUnread
 
-    messages = get_message_list()
+    messages = get_message_list() if get_settings()["sort_oldest_first"] else reversed(get_message_list())
 
     SCRead.be_gone()
     SCUnread.be_gone()
     SCUnread = ScrolledCanvas(UnreadFrame, "white")
     SCRead = ScrolledCanvas(ReadFrame, "white")
+
 
     for m in messages:
         if not m.read and m.date_received <= datetime.datetime.now():
@@ -171,9 +172,9 @@ class MessageWriter:
         # self.window.protocol('WM_DELETE_WINDOW', lambda arg=self.window: decrease_notification_amount(arg))
         sw = self.window.winfo_screenwidth()
         sh = self.window.winfo_screenheight()
-        # rw = 240
-        # rh = int(rw * 3 / 4)
-        # self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
+        rw = CHARACTER_WIDTH * 40
+        rh = int(rw * 9 / 16)
+        self.window.geometry(f"{rw}x{rh}+{sw//2 - rw//2}+{sh//2 - rh//2}")
         frame_bottom = Frame(self.window)
         frame_bottom.pack(side="bottom", padx=5, pady=5, fill="both")
         frame_right = Frame(self.window)
@@ -181,12 +182,12 @@ class MessageWriter:
         frame_left = Frame(self.window)
         frame_left.pack(side="left", padx=5, pady=5, fill="x")
 
-        title_label = Label(frame_left, text="Message title:")
+        title_label = Label(frame_left, text="Message title:", anchor="e")
         title_label.pack(side="top")
         self.date_var = StringVar()
         self.date_var.trace_add("write", self.watch_date)
         self.date_var_past = ""
-        date_label = Label(frame_left, text="Delivery date:")
+        date_label = Label(frame_left, text="Delivery date:", anchor="e")
         date_label.pack(side="bottom")
 
         self.title_entry = Entry(frame_right)
@@ -271,10 +272,11 @@ class WidgetSetting:
         self.name = name
         if visible:
             self.setting_frame.pack(side="top")
-        setting_label = Label(self.setting_frame, text=label_text, width=30, justify="right")
+        setting_label = Label(self.setting_frame, text=label_text, width=30, justify="right",
+                              wraplength=CHARACTER_WIDTH * 30, anchor="e")
         setting_label.pack(side="left")
-        setting_label2 = Label(self.setting_frame, text=description, wraplength=150, anchor="w",
-                               justify="left", width=30)
+        setting_label2 = Label(self.setting_frame, text=description, wraplength=CHARACTER_WIDTH * 50, anchor="w",
+                               justify="left", width=50)
         setting_label2.pack(side="right", padx=5, pady=5)
         self.setting_variable = StringVar()
         self.setting_widget = Label(self.setting_frame)
@@ -302,13 +304,14 @@ class EntrySetting(WidgetSetting):
 class CheckboxSetting(WidgetSetting):
     def __init__(self, parent, name: str, label_text: str, description: str, visible=True):
         super().__init__(parent, name, label_text, description, visible)
+        self.setting_variable = BooleanVar()
         self.setting_widget = Checkbutton(self.setting_frame, width=5, variable=self.setting_variable)
-        if get_settings()[name] == "True":
+        if get_settings()[name]:
             self.setting_widget.select()
         self.setting_widget.pack(side="right")
 
     def set_default(self):
-        if DEFAULT_SETTINGS["launch_on_startup"] != self.get():
+        if DEFAULT_SETTINGS[self.name] != self.get():
             self.setting_widget.toggle()
 
 
@@ -340,18 +343,18 @@ class SettingsWindow:
         self.tl.title("PesterSelf settings")
         set_icon(self.tl)
         sw = self.tl.winfo_screenwidth()
-        self.rw = int(sw / 2)
-        rh = int(self.rw * 3 / 4)
-        self.tl.geometry(f"{self.rw}x{rh}+{50}+{50}")
+        rw = CHARACTER_WIDTH * 90
+        rh = int(rw * 3 / 4)
+        self.tl.geometry(f"{rw}x{rh}+{50}+{50}")
         self.tl.protocol('WM_DELETE_WINDOW', self.destroy)
 
         bottom_frame = Frame(self.tl)
         button_defaults = Button(bottom_frame, text="Restore defaults", command=self.set_default_settings)
         button_defaults.pack(side="right", padx=5)
         bottom_frame.pack(side="bottom", padx=20, pady=20)
-        button_apply = Button(bottom_frame, text="Apply", command=self.apply_settings)
+        button_apply = Button(bottom_frame, text="Close", command=self.destroy)
         button_apply.pack(side="left", padx=5)
-        button_close = Button(bottom_frame, text="Close and apply", command=self.destroy)
+        button_close = Button(bottom_frame, text="Close and apply", command=self.apply_and_destroy)
         button_close.pack(side="right", padx=5)
 
         top_frame = Frame(self.tl, borderwidth=5, relief="sunken")
@@ -379,6 +382,11 @@ class SettingsWindow:
             "How wide the notification popup is.",
             100, 9999
         )
+        self.setting_widgets["sort_oldest_first"] = CheckboxSetting(self.tl,
+            "sort_oldest_first",
+            "Display oldest messages first: ",
+            "Check this if you want to see your oldest messages on top.",
+        )
         self.setting_widgets["launch_on_startup"] = CheckboxSetting(self.tl,
             "launch_on_startup",
             "Notification System on device startup: ",
@@ -391,7 +399,7 @@ class SettingsWindow:
         "can only be altered if Notification System on startup' is currently disabled",
         visible=sys.platform not in ["win32", "darwin"])
 
-        if self.settings["launch_on_startup"] == "True":
+        if self.settings["launch_on_startup"]:
             self.setting_widgets["startup_file"].setting_widget.config(state="disabled")
 
     def apply_settings(self):
@@ -420,7 +428,7 @@ class SettingsWindow:
             widget.set_default()
         set_settings(DEFAULT_SETTINGS)
         self.settings = DEFAULT_SETTINGS
-        self.apply_settings()
+        # self.apply_settings()
 
     def add_entry_setting(self, name: str, label_text: str, description: str, visible=True):
         frame_setting = Frame(self.tl)
@@ -437,7 +445,7 @@ class SettingsWindow:
             setting_entry.insert(0, self.settings[name])
         except KeyError:
             setting_entry.insert(0, DEFAULT_SETTINGS[name])
-            self.settings["name"] = DEFAULT_SETTINGS[name]
+            self.settings[name] = DEFAULT_SETTINGS[name]
 
         setting_entry.pack(side="right")
         return setting_variable, setting_entry
@@ -454,10 +462,10 @@ class SettingsWindow:
         setting_variable = BooleanVar()
         setting_check = Checkbutton(frame_setting, width=5, variable=setting_variable)
         try:
-            if self.settings[name] == "True":
+            if self.settings[name]:
                 setting_check.select()
         except KeyError:
-            if DEFAULT_SETTINGS[name] == "True":
+            if DEFAULT_SETTINGS[name]:
                 setting_check.select()
             self.settings[name] = DEFAULT_SETTINGS[name]
         setting_check.pack(side="right")
@@ -465,9 +473,12 @@ class SettingsWindow:
 
     def destroy(self):
         global settings_open
-        self.apply_settings()
         settings_open = False
         self.tl.destroy()
+
+    def apply_and_destroy(self):
+        self.apply_settings()
+        self.destroy()
 
 
 def open_settings():
@@ -480,16 +491,18 @@ def open_settings():
 
 
 class ScrolledCanvas:
+    global CHARACTER_WIDTH
+
     def __init__(self, parent, color='brown'):
         self.width = CHARACTER_WIDTH * 60
         self.c = Canvas(parent, bg=color)
-        self.c.config(width=self.width, height=100)
+        self.c.config(width=self.width, height=CHARACTER_WIDTH * 15)
         self.buttons = []
         self.frames = []
         self.parent = parent
         self.del_icon = PhotoImage(file=INSTALL_DIRECTORY / "resources/garbage_bin_icon.png")
 
-        self.c.config(scrollregion=(0, 0, self.width, 100))
+        self.c.config(scrollregion=(0, 0, self.width, CHARACTER_WIDTH * 15))
         self.c.config(highlightthickness=0)
 
         self.scrollbar = Scrollbar(parent)
@@ -510,12 +523,12 @@ class ScrolledCanvas:
         frm.config(relief="sunken")
         self.frames.append(frm)
         btn = Button(frm, text="\"" + message.title + f"\" from {message.get_date_sent_pretty()}",
-                     width=45, command=lambda x=message: open_message(x))
-        btn_del = Button(frm, width=CHARACTER_WIDTH*5, height=CHARACTER_WIDTH*3+5, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
+                     width=53, command=lambda x=message: open_message(x))
+        btn_del = Button(frm, width=CHARACTER_WIDTH*4, height=CHARACTER_WIDTH*3+5, image=self.del_icon, text="D", command=lambda x=message: delete_message(x))
         self.buttons.append(btn)
         btn.pack(side="left")
         btn_del.pack(side="right")
-        space_for_button = 25
+        space_for_button = CHARACTER_WIDTH * 4
         self.c.create_window(5, (space_for_button * len(self.buttons)) - space_for_button, anchor="nw", window=frm)
         self.c.config(scrollregion=(0, 0, self.width, len(self.buttons) * space_for_button))
 
@@ -541,7 +554,7 @@ set_icon(root)
 
 default_font = tkinter.font.nametofont("TkDefaultFont")
 set_text_size(int(get_settings()["text_size"]))
-
+CHARACTER_WIDTH = default_font.measure("n")
 
 RightFrame = Frame(root, bg="#cfcecc")
 RightFrame.pack(side="right", padx=10)

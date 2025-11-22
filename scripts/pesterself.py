@@ -14,11 +14,12 @@ INSTALL_DIRECTORY = Path(os.getcwd()).parent
 SETTINGS_FILE_PATH = INSTALL_DIRECTORY / "settings.cfg"
 
 DEFAULT_SETTINGS = {
-    "launch_on_startup": "False",
+    "launch_on_startup": False,
     "notification_size": "450",
     "text_size": "10",
     "inspection_interval": "30",
     "startup_file": ".bash_profile" if (Path.home() / ".bash_profile").exists() else ".profile",
+    "sort_oldest_first": True,
 }
 
 LINUX_STARTUP_LINES = [
@@ -91,7 +92,13 @@ def set_settings(settings):
     config = configparser.ConfigParser()
     config["settings"] = {}
     for setting in settings:
-        config["settings"][setting] = settings[setting]
+        if type(settings[setting]) != type(True):
+            config["settings"][setting] = settings[setting]
+        else:
+            if not settings[setting]:
+                config["settings"][setting] = "False"
+            elif settings[setting]:
+                config["settings"][setting] = "True"
     with open(SETTINGS_FILE_PATH, "w") as out_f:
         config.write(out_f)
 
@@ -111,6 +118,12 @@ def get_settings():
     for setting in DEFAULT_SETTINGS:
         if setting not in settings:
             settings[setting] = DEFAULT_SETTINGS[setting]
+
+    for key in settings.keys():
+        if settings[key] == "False":
+            settings[key] = False
+        elif settings[key] == "True":
+            settings[key] = True
 
     return settings
 
