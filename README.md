@@ -9,6 +9,9 @@ This app is for you if the idea of texting yourself through time sounds as extre
 	- [Windows](#windows)
 	- [Linux](#linux)
 2. [Usage](#usage)
+	- [Interface](#interface)
+	- [Notification System](#notification-system)
+	- [Updating](#updating)
 3. [License](#license)
 4. [Acknowledgments](#acknowledgments)
 
@@ -50,6 +53,13 @@ Also in the interface are controls for the **Notification System**. You can star
 As said above, **Notification System** is launched by either the interface or the startup script on your device. Please don't stop it manually(bypassing the interface). You can start it manually safely but why would you do that.
 
 **Notification System** sends notifications to you in the lower-right corner of the screen. It only checks for new messages every 30 minutes(customizable in settings) so messages may take a slightly longer time to reach you if set to be delivered too soon.
+
+## Updating
+Updating PesterSelf is a bit clunky but I may improve it in the future.
+1. Open **PesterSelf**, open settings
+2. Uncheck the `Notification System on device startup` setting and apply settings
+3. Close **PesterSelf** and delete its files except the `settings.cfg`
+4. Follow the [installation instructions](#getting-started) again and unpack the archive specifically in the folder with `settings.cfg`
 
 # License
 Distributed under the GNU General Public License 3.0, see `LICENSE.txt` for details.
